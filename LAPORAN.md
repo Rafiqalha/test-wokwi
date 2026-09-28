@@ -45,4 +45,6 @@ Format JSON: `device_id`, `seq`, `suhu`, `kelembapan`, `sent_ms`.
 ## 5. Demo
 
 Catat urutan demo: jalankan Mosquitto, `server.py`, Private Gateway,
-simulasi MQTT, ubah DHT22, ganti mode HTTP, lalu tunjukkan log dan Supabase.
+simulasi MQTT dengan `RANDOM_SENSOR_MODE 0`, ubah DHT22, ganti mode HTTP,
+lalu tunjukkan log dan Supabase. Jika memakai mode acak untuk demo dashboard,
+beri label data tersebut sebagai simulasi acak.

@@ -68,5 +68,41 @@ class ReceiverTests(unittest.TestCase):
         self.assertEqual(sync_once(self.db, "https://project.supabase.co", "test", session), 0)
 
 
+    def test_dashboard_reports_live_snapshot_and_serves_assets(self):
+        page = self.client.get("/")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b"Sensor telemetry", page.data)
+        page.close()
+        script = self.client.get("/assets/app.js")
+        self.assertEqual(script.status_code, 200)
+        script.close()
+        self.client.post("/update", json=SAMPLE)
+        data = self.client.get("/api/dashboard").json
+        self.assertEqual(data["totals"], {"total": 1, "mqtt": 0,
+                                          "http": 1, "pending": 1, "synced": 0})
+        self.assertEqual(data["readings"][0]["suhu"], 29.4)
+        self.assertIsInstance(data["readings"][0]["local_write_ms"], float)
+        self.assertNotIn("SUPABASE_SECRET_KEY", str(data))
+
+    def test_dashboard_stream_notifies_on_new_reading(self):
+        stream = self.client.get("/api/stream", buffered=False)
+        iterator = iter(stream.response)
+        self.assertIn(b"connected", next(iterator))
+        self.client.post("/update", json=SAMPLE)
+        self.assertIn(b"event: update", next(iterator))
+        stream.close()
+
+    def test_old_database_schema_is_migrated(self):
+        with connect_db(self.db) as conn:
+            conn.execute("drop table readings")
+            conn.execute("""create table readings (
+                event_id text primary key, device_id text, seq integer,
+                suhu real, kelembapan real, sent_ms integer, protokol text,
+                waktu_diterima text, synced_at text)""")
+        init_db(self.db)
+        with connect_db(self.db) as conn:
+            columns = {row["name"] for row in conn.execute("pragma table_info(readings)")}
+        self.assertIn("local_write_ms", columns)
+        self.assertIn("sync_request_ms", columns)
 if __name__ == "__main__":
     unittest.main()

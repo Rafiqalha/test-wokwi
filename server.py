@@ -7,6 +7,7 @@ import os
 import re
 import sqlite3
 import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -16,7 +17,9 @@ from urllib.parse import urlparse
 import paho.mqtt.client as mqtt
 import requests
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request, stream_with_context
+
+from dashboard_state import dashboard_snapshot, live_state
 
 
 TOPIC = "sensor/dht22"
@@ -78,11 +81,20 @@ def init_db(path):
             sent_ms integer not null,
             protokol text not null,
             waktu_diterima text not null,
-            synced_at text
+            synced_at text,
+            local_write_ms real,
+            sync_request_ms real
         )""")
+        columns = {row["name"] for row in conn.execute("pragma table_info(readings)")}
+        for name in ("local_write_ms", "sync_request_ms"):
+            if name not in columns:
+                conn.execute(f"alter table readings add column {name} real")
+        conn.execute("create index if not exists readings_received_idx "
+                     "on readings(waktu_diterima desc)")
 
 
 def save_reading(db_path, payload, protocol, received_at):
+    started = time.perf_counter()
     reading = validate_payload(payload)
     event_id = str(uuid.uuid4())
     with connect_db(db_path) as conn:
@@ -92,6 +104,11 @@ def save_reading(db_path, payload, protocol, received_at):
             values (?, ?, ?, ?, ?, ?, ?, ?)""",
             (event_id, reading["device_id"], reading["seq"], reading["suhu"],
              reading["kelembapan"], reading["sent_ms"], protocol, received_at))
+        conn.commit()
+        local_ms = (time.perf_counter() - started) * 1000
+        conn.execute("update readings set local_write_ms=? where event_id=?",
+                     (local_ms, event_id))
+    live_state.changed()
     log.info("DITERIMA %s %s seq=%d suhu=%.1f kelembapan=%.1f waktu=%s",
              protocol, reading["device_id"], reading["seq"], reading["suhu"],
              reading["kelembapan"], received_at)
@@ -99,8 +116,31 @@ def save_reading(db_path, payload, protocol, received_at):
 
 
 def create_app(db_path):
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder="dashboard", static_url_path="/assets")
     app.config["MAX_CONTENT_LENGTH"] = 1024
+
+    @app.get("/")
+    def dashboard_page():
+        return app.send_static_file("index.html")
+
+    @app.get("/api/dashboard")
+    def dashboard_data():
+        try:
+            return jsonify(dashboard_snapshot(db_path))
+        except sqlite3.Error:
+            log.exception("Gagal membaca data dashboard")
+            return jsonify(error="Data dashboard tidak tersedia"), 503
+
+    @app.get("/api/stream")
+    def dashboard_stream():
+        try:
+            last_id = max(0, int(request.headers.get("Last-Event-ID", "0")))
+        except ValueError:
+            last_id = 0
+        return Response(stream_with_context(live_state.events(last_id)),
+                        mimetype="text/event-stream",
+                        headers={"Cache-Control": "no-cache",
+                                 "X-Accel-Buffering": "no"})
 
     @app.post("/update")
     def update():
@@ -142,16 +182,23 @@ def start_mqtt(db_path, host, port):
     def on_connect(client, _userdata, _flags, reason_code, _properties):
         if reason_code == 0:
             client.subscribe(TOPIC, qos=0)
+            live_state.update(mqtt="online")
             log.info("MQTT subscribe: %s", TOPIC)
         else:
+            live_state.update(mqtt="offline")
             log.error("MQTT connect gagal: %s", reason_code)
+
+    def on_disconnect(_client, _userdata, _flags, _reason_code, _properties):
+        live_state.update(mqtt="offline")
 
     def on_message(client, _userdata, message):
         handle_mqtt_message(db_path, client, message)
 
     client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
     client.on_message = on_message
-    client.connect(host, port, keepalive=30)
+    client.reconnect_delay_set(min_delay=1, max_delay=10)
+    client.connect_async(host, port, keepalive=30)
     client.loop_start()
     return client
 
@@ -166,36 +213,48 @@ def sync_once(db_path, url, key, session=None):
     if not rows:
         return 0
     endpoint = url.rstrip("/") + "/rest/v1/sensor_readings?on_conflict=event_id"
+    started = time.perf_counter()
     response = session.post(
         endpoint,
         headers={"apikey": key, "Content-Type": "application/json",
                  "Prefer": "resolution=merge-duplicates,return=minimal"},
         json=[dict(row) for row in rows], timeout=10)
     response.raise_for_status()
+    request_ms = (time.perf_counter() - started) * 1000
+    synced_at = now_utc()
     with connect_db(db_path) as conn:
-        conn.executemany("update readings set synced_at=? where event_id=?",
-                         [(now_utc(), row["event_id"]) for row in rows])
+        conn.executemany("update readings set synced_at=?, sync_request_ms=? "
+                         "where event_id=?",
+                         [(synced_at, request_ms, row["event_id"]) for row in rows])
+    live_state.update(supabase="online", last_sync_at=synced_at, sync_error=None)
     log.info("Supabase tersinkron: %d baris", len(rows))
     return len(rows)
 
 
 def sync_worker(db_path, url, key, stop):
     if not url or not key or "REPLACE_ME" in key:
+        live_state.update(supabase="unconfigured")
         log.warning("Supabase belum dikonfigurasi; data tetap tersimpan di SQLite")
         return
     parsed = urlparse(url)
     is_local = parsed.hostname in ("127.0.0.1", "localhost", "::1")
     if parsed.scheme != "https" and not (parsed.scheme == "http" and is_local):
+        live_state.update(supabase="error", sync_error="URL tidak valid")
         log.error("SUPABASE_URL harus HTTPS atau HTTP pada loopback lokal")
         return
+    live_state.update(supabase="waiting", sync_error=None)
     while not stop.is_set():
         try:
             count = sync_once(db_path, url, key)
             if count:
                 continue
         except requests.RequestException as exc:
+            code = getattr(getattr(exc, "response", None), "status_code", None)
+            live_state.update(supabase="error",
+                              sync_error=f"HTTP {code}" if code else "Koneksi gagal")
             log.warning("Sinkronisasi Supabase gagal: %s", exc)
         except sqlite3.Error:
+            live_state.update(supabase="error", sync_error="Log lokal gagal dibaca")
             log.exception("Gagal membaca log lokal untuk sinkronisasi")
         stop.wait(2)
 

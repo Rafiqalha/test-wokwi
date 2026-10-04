@@ -58,6 +58,7 @@ nilainya tidak dibaca. Ambil screenshot diagram sebagai bukti rangkaian.
    $env:SUPABASE_HOME = Join-Path (Get-Location) '.supabase-home'
    $env:SUPABASE_TELEMETRY_DISABLED = '1'
    npx.cmd supabase start --network-id wokwi-uts-loopback -x gotrue,realtime,storage-api,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor
+   npx.cmd supabase migration up --local
    .\.venv\Scripts\python.exe scripts\configure_local.py
    ```
 
@@ -86,20 +87,25 @@ font sistem saat offline. Flask hanya menyajikan halaman, snapshot baca-saja di
 mengambil ulang snapshot saat ada pembacaan atau perubahan status sinkronisasi;
 refresh cadangan berjalan setiap 5 detik. Kunci Supabase tetap di proses laptop.
 
-Grafik menampilkan tren suhu dan kelembapan, pesan per interval MQTT/HTTP,
-korelasi sensor, serta distribusi waktu tulis SQLite (p50/p95). Alur data,
-backlog sinkronisasi, status layanan, dan log event ikut diperbarui. Klik
-salah satu baris log untuk melihat jejak penerimaan, commit SQLite, dan
-sinkronisasi Supabase. Pilihan rentang waktu serta protokol memfilter grafik; CSV mengekspor maksimal 900
-pembacaan terbaru yang dimuat. Total dan backlog tetap dihitung dari seluruh
-log SQLite, termasuk baris di luar jendela grafik. Jika belum ada data,
-dashboard menampilkan keadaan kosong, bukan angka simulasi.
+Grafik menampilkan tren suhu/kelembapan, pesan MQTT/HTTP, dan waktu tulis
+SQLite (p50/p95). Panel RTT menampilkan median/p95 serta timeout/error dari
+laporan pengirim. Nilai pengukuran yang belum tersedia tidak dihitung sebagai
+nol. Filter sumber membedakan `dht22`, `random`, `demo`, dan `unknown`; filter
+sesi membatasi perangkat dan sesi sebelum 900 baris terbaru dimuat dari SQLite.
+Rentang waktu/protokol memfilter grafik, event log, dan ekspor. CSV pembacaan
+menyertakan sumber, sesi, dan RTT; tombol **Ekspor RTT** menyertakan laporan
+sukses maupun kegagalan, termasuk percobaan yang tidak memiliki pembacaan.
+Total/backlog menghitung seluruh riwayat sumber/sesi terpilih, termasuk baris
+di luar jendela grafik. Maksimal 900 pembacaan dan 900 laporan RTT dimuat.
 
-Saat tidak ada data dalam 15 menit terakhir, dashboard tetap membuka seluruh
-riwayat yang dimuat dan menandai sensor sebagai `WAITING SENSOR`. Status
-`LIVE SENSOR` hanya muncul setelah pembacaan baru diterima. Membuka halaman
-browser saja tidak menghasilkan data baru; jalankan sketch Wokwi terbaru atau
-node demo lokal berikut di terminal terpisah:
+Klik event untuk melihat sesi, sumber, RTT, commit SQLite, dan sinkronisasi.
+Supabase diperiksa berkala (sekitar 10 detik saat tidak ada backlog), termasuk
+ketika tidak ada unggahan. Metrik mempunyai backlog sinkronisasi terpisah.
+
+Status `LIVE SENSOR` berarti ada pembacaan dalam 20 detik terakhir pada
+sumber/sesi terpilih. Pilihan **Dimuat** membuka riwayat; pilihan 15 menit,
+1 jam, atau 6 jam hanya menampilkan data pada rentang tersebut. Membuka browser
+tidak menghasilkan pembacaan. Jalankan Wokwi atau node demo di terminal lain:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\sensor_node.py --protocol both
@@ -132,15 +138,14 @@ proses itu dengan Ctrl+C dan jalankan kembali agar route baru aktif.
 3. Untuk MQTT, biarkan `#define USE_MQTT 1` lalu mulai simulasi. Amati Serial
    Monitor, terminal `server.py`, dan bila perlu `mosquitto_sub -h 127.0.0.1
    -t sensor/dht22 -v` di terminal tambahan.
-4. Secara bawaan `RANDOM_SENSOR_MODE 1`: ESP32 membuat suhu dan kelembapan
-   acak yang bergerak perlahan, lalu mengirimnya otomatis setiap 2 detik selama
-   simulasi aktif. Browser dashboard tidak membuat data palsu. Untuk membaca
-   DHT22 virtual sungguhan, ubah `#define RANDOM_SENSOR_MODE 0`, mulai ulang
-   simulasi, lalu ubah slider DHT22.
+4. Secara bawaan `RANDOM_SENSOR_MODE 0`: ESP32 membaca DHT22 virtual setiap
+   2 detik. Klik DHT22 dan ubah slider suhu/kelembapan. Untuk demo acak,
+   ubah mode menjadi `1`; payload akan berlabel `source_mode=random`.
+   Setiap restart membuat `session_id` baru. Catat sesi MQTT dan HTTP.
 5. Untuk HTTP, ubah `#define USE_MQTT 0`, mulai ulang simulasi, dan amati
    Serial Monitor serta terminal `server.py`. Kedua protokol tetap dijalankan
    bergantian agar hasilnya bisa dibandingkan.
-6. Periksa tabel `public.sensor_readings` di Supabase Studio lokal. Kolom `protokol`
+6. Periksa tabel `public.sensor_readings` dan `public.delivery_attempts` di Supabase Studio lokal. Kolom `protokol`
    menunjukkan jalurnya dan `waktu_diterima` berasal dari laptop. Bila Docker
    gagal diakses, data tetap ada di `data/sensor.db` dan akan dicoba ulang
    selama program masih berjalan. Gunakan `npx.cmd supabase stop` untuk
@@ -163,7 +168,7 @@ dosen untuk arsitektur demo yang berbeda.
 Payload sama untuk kedua protokol, misalnya:
 
 ```json
-{"device_id":"esp32-01","seq":1,"suhu":29.4,"kelembapan":71.2,"sent_ms":5200}
+{"device_id":"esp32-01","session_id":"a1b2c3d4e5f60708","source_mode":"dht22","seq":1,"suhu":29.4,"kelembapan":71.2,"sent_ms":5200}
 ```
 
 `sent_ms` adalah `millis()` pada ESP32 simulasi. Jangan kurangkan nilai ini
@@ -171,14 +176,78 @@ dari `waktu_diterima` UTC pada laptop: kedua jam berbeda. `waktu_diterima`
 berguna untuk mengurutkan bukti penerimaan dan dihitung sebelum operasi
 penyimpanan. Serial Monitor menampilkan RTT dalam ms:
 
-- MQTT: dari `publish` sampai subscriber laptop mengirim ACK aplikasi.
-- HTTP: dari POST sampai respons 200 dari Flask.
+- MQTT: dari `publish` sampai ESP32 menerima ACK aplikasi dari laptop.
+- HTTP: dari POST sampai body respons 200 diterima, dengan sesi/nomor urut yang cocok.
 
 Keduanya dicatat sesudah log SQLite lokal dibuat, tetapi sebelum sinkronisasi
 Supabase. Gunakan beberapa puluh sampel per mode, abaikan koneksi pertama,
 bandingkan median dan rentang RTT, serta laporkan bahwa RTT mencakup perjalanan
 pulang dan penanganan di laptop. Ini bukan pengukuran satu arah yang murni.
 Kecepatan simulasi Wokwi juga dapat memengaruhi `millis()` terhadap waktu nyata.
+
+Pembacaan baru dideduplikasi berdasarkan `(device_id, session_id, protokol,
+seq)`. Pengiriman ulang data identik mengembalikan ACK dan waktu penerimaan
+pertama; identitas sama dengan isi berbeda ditolak. Format lama tanpa sesi/sumber
+masih diterima sebagai `unknown` dan tidak dideduplikasi. Migrasi tidak menebak
+sumber data lama dari `device_id` dan tidak mengisi pengukuran historis.
+
+Setelah ACK/respons diterima, pengirim melaporkan hasil secara terpisah melalui
+topik MQTT `sensor/metrics` atau HTTP `POST /metrics`:
+
+```json
+{"device_id":"esp32-01","session_id":"a1b2c3d4e5f60708","source_mode":"dht22","seq":1,"protokol":"MQTT","status":"ok","rtt_ms":42}
+```
+
+Status `timeout`/`error` memakai `rtt_ms=null`. Laporan disimpan pada
+`delivery_attempts`, dicocokkan ke pembacaan berdasarkan identitas, dan disalin
+ke Supabase. Laporan ulang identik tidak menambah sampel. Laporan ini dikirim
+setelah waktu RTT diambil, sehingga durasi pengiriman metrik tidak masuk RTT.
+Pengiriman metrik bersifat best effort: jika laporan juga gagal terkirim,
+percobaan tersebut tidak tercatat di dashboard. Hitung kegagalan lengkap dari
+Serial Monitor/log pengirim, bukan dari dashboard saja.
+
+Pengujian ini membandingkan koneksi MQTT yang dipertahankan dengan request HTTP
+baru pada setiap pembacaan. RTT dapat mencakup pembentukan koneksi HTTP serta
+penanganan SQLite. Pilih satu sumber, gunakan kondisi jaringan dan interval sama,
+ambil minimal 30 sampel sukses per protokol, dan abaikan sampel pemanasan pertama
+per sesi saat menghitung hasil laporan. Dua protokol dijalankan dalam sesi
+berbeda; filter **Semua sesi** + **DHT22** dapat menampilkan keduanya. CSV tetap
+mengekspor sampel pemanasan sehingga penghapusan sampel harus dijelaskan.
+
+## Validasi lokal dan pembaruan database
+
+Untuk stack Supabase yang sudah ada, jalankan migrasi tambahan tanpa reset:
+
+```powershell
+$env:SUPABASE_HOME = Join-Path (Get-Location) '.supabase-home'
+npx.cmd supabase migration up --local
+```
+
+Restart `server.py` untuk memigrasikan SQLite secara otomatis. Simpan backup
+SQLite sebelum menjalankan versi baru pada log penting. Jalankan tes:
+
+```powershell
+.\.venv\Scripts\python.exe -B -m unittest discover -s tests -v
+node --test tests/test_dashboard.cjs
+node --check dashboard/app.js
+```
+
+Untuk pemeriksaan MQTT/HTTP melalui socket nyata, gunakan broker/database
+sementara. Perintah berikut tidak menulis ke `data/sensor.db` dan tidak
+mengirim ke Supabase atau Wokwi:
+
+```powershell
+.\.venv\Scripts\python.exe -B scripts\smoke_local.py --mosquitto D:\Mosquitto\mosquitto.exe
+```
+
+Sesuaikan path broker. Opsi `--browser "C:\Program Files\Google\Chrome\Application\chrome.exe"`
+menambahkan pemeriksaan browser headless. Hasil lokal tersimpan di
+`data/validation/local-smoke.json` dan `local-rtt.csv`; hasil ini adalah bukti
+integrasi node demo, bukan bukti ESP32/DHT22 atau hasil tugas. Tambahkan
+`--supabase` untuk menguji sinkronisasi ke stack lokal dari `.env`. Opsi ini
+mengunggah fixture demo sementara dan membersihkan hanya UUID fixture yang
+terbukti belum ada sebelum pengujian. Data historis tetap dipertahankan.
+Browser diperiksa dengan font sistem agar pemeriksaan tidak membutuhkan Google Fonts.
 
 ## Bukti laporan
 

@@ -1,0 +1,142 @@
+[
+  {
+    "pengujian": "Suhu berupa teks",
+    "protokol": "HTTP",
+    "diharapkan": 400,
+    "aktual": 400,
+    "pesan": "suhu harus angka terbatas",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "Suhu di luar rentang DHT22 (200 °C)",
+    "protokol": "HTTP",
+    "diharapkan": 400,
+    "aktual": 400,
+    "pesan": "suhu di luar rentang DHT22",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "Kelembapan di atas 100 %",
+    "protokol": "HTTP",
+    "diharapkan": 400,
+    "aktual": 400,
+    "pesan": "kelembapan di luar rentang DHT22",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "Field suhu hilang",
+    "protokol": "HTTP",
+    "diharapkan": 400,
+    "aktual": 400,
+    "pesan": "Field sensor tidak lengkap atau tidak dikenal",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "Field asing ditambahkan",
+    "protokol": "HTTP",
+    "diharapkan": 400,
+    "aktual": 400,
+    "pesan": "Field sensor tidak lengkap atau tidak dikenal",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "device_id mengandung spasi",
+    "protokol": "HTTP",
+    "diharapkan": 400,
+    "aktual": 400,
+    "pesan": "device_id tidak valid",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "seq negatif",
+    "protokol": "HTTP",
+    "diharapkan": 400,
+    "aktual": 400,
+    "pesan": "seq harus bilangan bulat 0..4294967295",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "source_mode tidak dikenal",
+    "protokol": "HTTP",
+    "diharapkan": 400,
+    "aktual": 400,
+    "pesan": "source_mode harus dht22, random, atau demo",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "JSON rusak",
+    "protokol": "HTTP",
+    "diharapkan": 400,
+    "aktual": 400,
+    "pesan": "Body harus objek JSON",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "Content-Type bukan JSON",
+    "protokol": "HTTP",
+    "diharapkan": 415,
+    "aktual": 415,
+    "pesan": "Content-Type harus application/json",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "Perangkat nonaktif (esp32-02)",
+    "protokol": "HTTP",
+    "diharapkan": 403,
+    "aktual": 403,
+    "pesan": "Perangkat dinonaktifkan pada tabel devices",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "Retry identik record tersimpan",
+    "protokol": "HTTP",
+    "diharapkan": 200,
+    "aktual": 200,
+    "pesan": "event_id sama: True",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "Identitas sama, nilai berbeda",
+    "protokol": "HTTP",
+    "diharapkan": 409,
+    "aktual": 409,
+    "pesan": "Identitas pembacaan sudah dipakai untuk data berbeda",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  },
+  {
+    "pengujian": "Kelembapan 150 % melalui MQTT",
+    "protokol": "MQTT",
+    "diharapkan": "tanpa ACK",
+    "aktual": "tanpa ACK",
+    "pesan": "ditolak validasi subscriber",
+    "record_sebelum": 2338,
+    "record_sesudah": 2338,
+    "lulus": true
+  }
+]

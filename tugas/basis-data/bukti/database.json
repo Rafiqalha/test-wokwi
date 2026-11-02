@@ -1,0 +1,898 @@
+{
+  "database": {
+    "bytes": 2469888,
+    "engine": "SQLite 3.50.4",
+    "file": "data/sensor.db",
+    "journal_mode": "wal",
+    "wal_bytes": 0
+  },
+  "generated_at": "2026-11-02T04:14:01.618+00:00",
+  "queries": [
+    {
+      "columns": [
+        "waktu_diterima",
+        "protokol",
+        "seq",
+        "suhu",
+        "kelembapan"
+      ],
+      "elapsed_ms": 0.101,
+      "judul": "Query 1 - Pembacaan terbaru satu perangkat dalam 1 jam terakhir",
+      "plan": [
+        "SEARCH readings USING INDEX readings_device_time_idx (device_id=? AND waktu_diterima>?)"
+      ],
+      "rows": [
+        [
+          "2026-11-02T04:13:42.297+00:00",
+          "HTTP",
+          30,
+          26,
+          66.8
+        ],
+        [
+          "2026-11-02T04:13:40.272+00:00",
+          "MQTT",
+          29,
+          26.5,
+          68
+        ],
+        [
+          "2026-11-02T04:13:38.273+00:00",
+          "HTTP",
+          28,
+          27,
+          68.3
+        ],
+        [
+          "2026-11-02T04:13:36.271+00:00",
+          "MQTT",
+          27,
+          26.9,
+          68.5
+        ],
+        [
+          "2026-11-02T04:13:34.291+00:00",
+          "HTTP",
+          26,
+          26.9,
+          69.2
+        ],
+        [
+          "2026-11-02T04:13:32.272+00:00",
+          "MQTT",
+          25,
+          26.6,
+          68.1
+        ],
+        [
+          "2026-11-02T04:13:30.285+00:00",
+          "HTTP",
+          24,
+          26.2,
+          68.8
+        ],
+        [
+          "2026-11-02T04:13:28.272+00:00",
+          "MQTT",
+          23,
+          26,
+          68.7
+        ],
+        [
+          "2026-11-02T04:13:26.293+00:00",
+          "HTTP",
+          22,
+          25.9,
+          68
+        ],
+        [
+          "2026-11-02T04:13:24.272+00:00",
+          "MQTT",
+          21,
+          25.5,
+          69
+        ]
+      ],
+      "sql": "SELECT waktu_diterima, protokol, seq, suhu, kelembapan\nFROM readings\nWHERE device_id = 'demo-node-01'\n  AND waktu_diterima >= strftime('%Y-%m-%dT%H:%M:%f+00:00', 'now', '-1 hour')\nORDER BY waktu_diterima DESC\nLIMIT 10;",
+      "truncated": false,
+      "tujuan": "Memilih kolom, memfilter perangkat dan rentang waktu, lalu mengurutkan data terbaru. Batas waktu dibuat dalam format UTC yang sama sehingga indeks (device_id, waktu_diterima) dapat dipakai."
+    },
+    {
+      "columns": [
+        "jam_wib",
+        "jumlah",
+        "suhu_rata",
+        "suhu_min",
+        "suhu_maks",
+        "kelembapan_rata"
+      ],
+      "elapsed_ms": 4.231,
+      "judul": "Query 2 - Agregasi suhu dan kelembapan per jam",
+      "plan": [
+        "SEARCH readings USING INDEX readings_device_time_idx (device_id=?)",
+        "USE TEMP B-TREE FOR GROUP BY"
+      ],
+      "rows": [
+        [
+          "2026-11-02 11:00",
+          105,
+          26.69,
+          24,
+          29.1,
+          64.16
+        ],
+        [
+          "2026-10-05 08:00",
+          138,
+          33.02,
+          31.2,
+          34,
+          78.88
+        ],
+        [
+          "2026-10-05 07:00",
+          1011,
+          29.59,
+          24,
+          34,
+          69.4
+        ],
+        [
+          "2026-10-05 06:00",
+          816,
+          30.56,
+          24,
+          34,
+          73.35
+        ],
+        [
+          "2026-09-28 16:00",
+          296,
+          31.04,
+          26.4,
+          34,
+          61.4
+        ]
+      ],
+      "sql": "SELECT strftime('%Y-%m-%d %H:00', waktu_diterima, '+7 hours') AS jam_wib,\n       COUNT(*) AS jumlah,\n       ROUND(AVG(suhu), 2) AS suhu_rata,\n       MIN(suhu) AS suhu_min,\n       MAX(suhu) AS suhu_maks,\n       ROUND(AVG(kelembapan), 2) AS kelembapan_rata\nFROM readings\nWHERE device_id = 'demo-node-01'\nGROUP BY jam_wib\nORDER BY jam_wib DESC\nLIMIT 12;",
+      "truncated": false,
+      "tujuan": "Meringkas data mentah per jam dengan COUNT, AVG, MIN, dan MAX. Waktu tetap disimpan UTC; query hanya mengubahnya ke WIB (+7 jam) untuk ditampilkan."
+    },
+    {
+      "columns": [
+        "perangkat",
+        "parameter",
+        "severity",
+        "jumlah_alarm",
+        "nilai_min",
+        "nilai_maks",
+        "terakhir_wib"
+      ],
+      "elapsed_ms": 1.569,
+      "judul": "Query 3 - JOIN alarm dengan perangkat",
+      "plan": [
+        "SCAN a",
+        "SEARCH d USING INDEX sqlite_autoindex_devices_1 (device_id=?)",
+        "USE TEMP B-TREE FOR GROUP BY",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "rows": [
+        [
+          "Node demo Python",
+          "suhu",
+          "kritis",
+          882,
+          32,
+          34,
+          "2026-10-05 08:04"
+        ],
+        [
+          "Node demo Python",
+          "suhu",
+          "peringatan",
+          510,
+          30,
+          31.9,
+          "2026-10-05 08:02"
+        ],
+        [
+          "Node demo Python",
+          "kelembapan",
+          "peringatan",
+          217,
+          80.1,
+          84,
+          "2026-10-05 08:02"
+        ]
+      ],
+      "sql": "SELECT d.nama AS perangkat,\n       a.parameter,\n       a.severity,\n       COUNT(*) AS jumlah_alarm,\n       MIN(a.nilai) AS nilai_min,\n       MAX(a.nilai) AS nilai_maks,\n       strftime('%Y-%m-%d %H:%M', MAX(a.waktu), '+7 hours') AS terakhir_wib\nFROM alerts AS a\nJOIN devices AS d ON d.device_id = a.device_id\nGROUP BY d.nama, a.parameter, a.severity\nORDER BY jumlah_alarm DESC;",
+      "truncated": false,
+      "tujuan": "Menggabungkan alerts dan devices melalui foreign key device_id untuk menghitung alarm per perangkat, parameter, dan tingkat keparahan."
+    },
+    {
+      "columns": [
+        "device_id",
+        "sesi",
+        "mulai_wib",
+        "jumlah",
+        "seharusnya",
+        "seq_hilang",
+        "duplikat",
+        "waktu_mundur",
+        "bukan_utc"
+      ],
+      "elapsed_ms": 6.181,
+      "judul": "Query 4 - Pemeriksaan kualitas data per sesi",
+      "plan": [
+        "CO-ROUTINE urut",
+        "CO-ROUTINE (subquery-3)",
+        "SCAN readings USING INDEX readings_identity_idx",
+        "USE TEMP B-TREE FOR LAST TERM OF ORDER BY",
+        "SCAN (subquery-3)",
+        "SCAN urut",
+        "USE TEMP B-TREE FOR GROUP BY",
+        "USE TEMP B-TREE FOR count(DISTINCT)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "rows": [
+        [
+          "demo-node-01",
+          "ded6476d",
+          "2026-10-05 06:10",
+          816,
+          816,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          "demo-node-01",
+          "b7e23a47",
+          "2026-10-05 07:25",
+          292,
+          292,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          "demo-node-01",
+          "f72768aa",
+          "2026-10-05 07:36",
+          857,
+          857,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          "demo-node-01",
+          "b4e9f5c5",
+          "2026-11-02 11:09",
+          75,
+          75,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          "demo-node-01",
+          "eb1ca6c1",
+          "2026-11-02 11:12",
+          30,
+          30,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "sql": "WITH urut AS (\n    SELECT device_id, session_id, seq, waktu_diterima,\n           LAG(waktu_diterima) OVER (\n               PARTITION BY device_id, session_id ORDER BY seq\n           ) AS waktu_sebelumnya\n    FROM readings\n    WHERE session_id IS NOT NULL\n)\nSELECT device_id,\n       substr(session_id, 1, 8) AS sesi,\n       strftime('%Y-%m-%d %H:%M', MIN(waktu_diterima), '+7 hours') AS mulai_wib,\n       COUNT(*) AS jumlah,\n       MAX(seq) - MIN(seq) + 1 AS seharusnya,\n       MAX(seq) - MIN(seq) + 1 - COUNT(DISTINCT seq) AS seq_hilang,\n       COUNT(*) - COUNT(DISTINCT seq) AS duplikat,\n       COALESCE(SUM(waktu_diterima < waktu_sebelumnya), 0) AS waktu_mundur,\n       SUM(waktu_diterima NOT LIKE '%+00:00') AS bukan_utc\nFROM urut\nGROUP BY device_id, session_id\nORDER BY MIN(waktu_diterima);",
+      "truncated": false,
+      "tujuan": "Mengukur completeness (seq hilang), uniqueness (duplikat), dan konsistensi timestamp (waktu mundur, bukan UTC) untuk setiap sesi pengiriman."
+    },
+    {
+      "columns": [
+        "protokol",
+        "jumlah_pembacaan",
+        "laporan_rtt",
+        "rtt_rata_ms",
+        "rtt_min_ms",
+        "rtt_maks_ms",
+        "tulis_lokal_rata_ms"
+      ],
+      "elapsed_ms": 2.434,
+      "judul": "Query 5 - Perbandingan MQTT dan HTTP (lanjutan UTS)",
+      "plan": [
+        "SCAN r",
+        "SEARCH a USING INDEX sqlite_autoindex_delivery_attempts_2 (device_id=? AND session_id=? AND protokol=? AND seq=?) LEFT-JOIN",
+        "USE TEMP B-TREE FOR GROUP BY"
+      ],
+      "rows": [
+        [
+          "HTTP",
+          1034,
+          1033,
+          35.83,
+          9.95,
+          336.69,
+          21.3
+        ],
+        [
+          "MQTT",
+          1036,
+          1036,
+          26.85,
+          5.34,
+          320.2,
+          20.8
+        ]
+      ],
+      "sql": "SELECT r.protokol,\n       COUNT(*) AS jumlah_pembacaan,\n       COUNT(a.event_id) AS laporan_rtt,\n       ROUND(AVG(a.rtt_ms), 2) AS rtt_rata_ms,\n       ROUND(MIN(a.rtt_ms), 2) AS rtt_min_ms,\n       ROUND(MAX(a.rtt_ms), 2) AS rtt_maks_ms,\n       ROUND(AVG(r.local_write_ms), 2) AS tulis_lokal_rata_ms\nFROM readings AS r\nLEFT JOIN delivery_attempts AS a\n       ON a.device_id = r.device_id AND a.session_id = r.session_id\n      AND a.protokol = r.protokol AND a.seq = r.seq AND a.status = 'ok'\nWHERE r.source_mode = 'demo'\nGROUP BY r.protokol;",
+      "truncated": false,
+      "tujuan": "LEFT JOIN pembacaan dengan laporan RTT berdasarkan identitas pengiriman untuk membandingkan jumlah data, RTT, dan waktu tulis lokal per protokol."
+    }
+  ],
+  "tables": [
+    {
+      "columns": [
+        {
+          "checks": [
+            "length(device_id) between 1 and 32"
+          ],
+          "comment": "ID unik perangkat",
+          "default": null,
+          "fk": null,
+          "name": "device_id",
+          "notnull": true,
+          "pk": true,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "nama tampilan",
+          "default": null,
+          "fk": null,
+          "name": "nama",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "lokasi pemasangan",
+          "default": null,
+          "fk": null,
+          "name": "lokasi",
+          "notnull": false,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [
+            "status in ('aktif', 'nonaktif')"
+          ],
+          "comment": "nonaktif: data ditolak",
+          "default": "'aktif'",
+          "fk": null,
+          "name": "status",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "pembacaan pertama (UTC)",
+          "default": null,
+          "fk": null,
+          "name": "pertama_terlihat",
+          "notnull": false,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "pembacaan terakhir (UTC)",
+          "default": null,
+          "fk": null,
+          "name": "terakhir_terlihat",
+          "notnull": false,
+          "pk": false,
+          "type": "TEXT"
+        }
+      ],
+      "constraints": [],
+      "indexes": [
+        {
+          "columns": [
+            "device_id"
+          ],
+          "name": "sqlite_autoindex_devices_1",
+          "origin": "primary key",
+          "unique": true,
+          "where": null
+        }
+      ],
+      "name": "devices",
+      "note": "Metadata perangkat (master)",
+      "rows": 3
+    },
+    {
+      "columns": [
+        {
+          "checks": [],
+          "comment": "UUID dari server",
+          "default": null,
+          "fk": null,
+          "name": "event_id",
+          "notnull": true,
+          "pk": true,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "pengirim (FK)",
+          "default": null,
+          "fk": "devices(device_id)",
+          "name": "device_id",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "sesi boot pengirim",
+          "default": null,
+          "fk": null,
+          "name": "session_id",
+          "notnull": false,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [
+            "source_mode in ('dht22', 'random', 'demo', 'unknown')"
+          ],
+          "comment": "asal data",
+          "default": "'unknown'",
+          "fk": null,
+          "name": "source_mode",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [
+            "protokol in ('MQTT', 'HTTP')"
+          ],
+          "comment": "jalur pengiriman",
+          "default": null,
+          "fk": null,
+          "name": "protokol",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [
+            "seq between 0 and 4294967295"
+          ],
+          "comment": "nomor urut per sesi",
+          "default": null,
+          "fk": null,
+          "name": "seq",
+          "notnull": true,
+          "pk": false,
+          "type": "INTEGER"
+        },
+        {
+          "checks": [
+            "suhu between -40 and 125"
+          ],
+          "comment": "derajat Celsius",
+          "default": null,
+          "fk": null,
+          "name": "suhu",
+          "notnull": true,
+          "pk": false,
+          "type": "REAL"
+        },
+        {
+          "checks": [
+            "kelembapan between 0 and 100"
+          ],
+          "comment": "persen RH",
+          "default": null,
+          "fk": null,
+          "name": "kelembapan",
+          "notnull": true,
+          "pk": false,
+          "type": "REAL"
+        },
+        {
+          "checks": [
+            "sent_ms between 0 and 4294967295"
+          ],
+          "comment": "millis() pengirim",
+          "default": null,
+          "fk": null,
+          "name": "sent_ms",
+          "notnull": true,
+          "pk": false,
+          "type": "INTEGER"
+        },
+        {
+          "checks": [
+            "waktu_diterima like '____-__-__T__:__:__%+00:00'"
+          ],
+          "comment": "ingestion time (UTC)",
+          "default": null,
+          "fk": null,
+          "name": "waktu_diterima",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "durasi commit lokal",
+          "default": null,
+          "fk": null,
+          "name": "local_write_ms",
+          "notnull": false,
+          "pk": false,
+          "type": "REAL"
+        },
+        {
+          "checks": [],
+          "comment": "waktu salin Supabase",
+          "default": null,
+          "fk": null,
+          "name": "synced_at",
+          "notnull": false,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "durasi unggah batch",
+          "default": null,
+          "fk": null,
+          "name": "sync_request_ms",
+          "notnull": false,
+          "pk": false,
+          "type": "REAL"
+        }
+      ],
+      "constraints": [],
+      "indexes": [
+        {
+          "columns": [
+            "device_id",
+            "session_id",
+            "protokol",
+            "seq"
+          ],
+          "name": "readings_identity_idx",
+          "origin": "index",
+          "unique": true,
+          "where": "session_id is not null"
+        },
+        {
+          "columns": [
+            "device_id",
+            "waktu_diterima DESC"
+          ],
+          "name": "readings_device_time_idx",
+          "origin": "index",
+          "unique": false,
+          "where": null
+        },
+        {
+          "columns": [
+            "waktu_diterima DESC"
+          ],
+          "name": "readings_received_idx",
+          "origin": "index",
+          "unique": false,
+          "where": null
+        },
+        {
+          "columns": [
+            "event_id"
+          ],
+          "name": "sqlite_autoindex_readings_1",
+          "origin": "primary key",
+          "unique": true,
+          "where": null
+        }
+      ],
+      "name": "readings",
+      "note": "Telemetri sensor, satu baris per pembacaan",
+      "rows": 2368
+    },
+    {
+      "columns": [
+        {
+          "checks": [],
+          "comment": "nomor alarm",
+          "default": null,
+          "fk": null,
+          "name": "alert_id",
+          "notnull": false,
+          "pk": true,
+          "type": "INTEGER"
+        },
+        {
+          "checks": [],
+          "comment": "pembacaan pemicu (FK)",
+          "default": null,
+          "fk": "readings(event_id) on delete cascade",
+          "name": "event_id",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "perangkat (FK)",
+          "default": null,
+          "fk": "devices(device_id)",
+          "name": "device_id",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "waktu pembacaan (UTC)",
+          "default": null,
+          "fk": null,
+          "name": "waktu",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [
+            "parameter in ('suhu', 'kelembapan')"
+          ],
+          "comment": "besaran yang dipantau",
+          "default": null,
+          "fk": null,
+          "name": "parameter",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "nilai terukur",
+          "default": null,
+          "fk": null,
+          "name": "nilai",
+          "notnull": true,
+          "pk": false,
+          "type": "REAL"
+        },
+        {
+          "checks": [],
+          "comment": "batas yang dilewati",
+          "default": null,
+          "fk": null,
+          "name": "ambang",
+          "notnull": true,
+          "pk": false,
+          "type": "REAL"
+        },
+        {
+          "checks": [
+            "severity in ('peringatan', 'kritis')"
+          ],
+          "comment": "tingkat keparahan",
+          "default": null,
+          "fk": null,
+          "name": "severity",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "keterangan aturan",
+          "default": null,
+          "fk": null,
+          "name": "pesan",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        }
+      ],
+      "constraints": [
+        "unique (event_id, parameter)"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "device_id",
+            "waktu DESC"
+          ],
+          "name": "alerts_device_time_idx",
+          "origin": "index",
+          "unique": false,
+          "where": null
+        },
+        {
+          "columns": [
+            "event_id",
+            "parameter"
+          ],
+          "name": "sqlite_autoindex_alerts_1",
+          "origin": "unique",
+          "unique": true,
+          "where": null
+        }
+      ],
+      "name": "alerts",
+      "note": "Alarm ketika nilai melewati ambang",
+      "rows": 1609
+    },
+    {
+      "columns": [
+        {
+          "checks": [],
+          "comment": "UUID v5 dari identitas",
+          "default": null,
+          "fk": null,
+          "name": "event_id",
+          "notnull": true,
+          "pk": true,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "pengirim laporan",
+          "default": null,
+          "fk": null,
+          "name": "device_id",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "sesi boot pengirim",
+          "default": null,
+          "fk": null,
+          "name": "session_id",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [
+            "source_mode in ('dht22', 'random', 'demo')"
+          ],
+          "comment": "asal data",
+          "default": null,
+          "fk": null,
+          "name": "source_mode",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [
+            "seq between 0 and 4294967295"
+          ],
+          "comment": "seq pembacaan terkait",
+          "default": null,
+          "fk": null,
+          "name": "seq",
+          "notnull": true,
+          "pk": false,
+          "type": "INTEGER"
+        },
+        {
+          "checks": [
+            "protokol in ('MQTT', 'HTTP')"
+          ],
+          "comment": "MQTT atau HTTP",
+          "default": null,
+          "fk": null,
+          "name": "protokol",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [
+            "status in ('ok', 'timeout', 'error')"
+          ],
+          "comment": "hasil pengiriman",
+          "default": null,
+          "fk": null,
+          "name": "status",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "kosong jika gagal",
+          "default": null,
+          "fk": null,
+          "name": "rtt_ms",
+          "notnull": false,
+          "pk": false,
+          "type": "REAL"
+        },
+        {
+          "checks": [
+            "waktu_dilaporkan like '____-__-__T__:__:__%+00:00'"
+          ],
+          "comment": "waktu laporan (UTC)",
+          "default": null,
+          "fk": null,
+          "name": "waktu_dilaporkan",
+          "notnull": true,
+          "pk": false,
+          "type": "TEXT"
+        },
+        {
+          "checks": [],
+          "comment": "waktu salin Supabase",
+          "default": null,
+          "fk": null,
+          "name": "synced_at",
+          "notnull": false,
+          "pk": false,
+          "type": "TEXT"
+        }
+      ],
+      "constraints": [
+        "unique (device_id, session_id, protokol, seq)",
+        "check ((status = 'ok' and rtt_ms is not null and rtt_ms between 0 and 120000) or (status <> 'ok' and rtt_ms is null))"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "waktu_dilaporkan DESC"
+          ],
+          "name": "attempts_reported_idx",
+          "origin": "index",
+          "unique": false,
+          "where": null
+        },
+        {
+          "columns": [
+            "device_id",
+            "session_id",
+            "protokol",
+            "seq"
+          ],
+          "name": "sqlite_autoindex_delivery_attempts_2",
+          "origin": "unique",
+          "unique": true,
+          "where": null
+        },
+        {
+          "columns": [
+            "event_id"
+          ],
+          "name": "sqlite_autoindex_delivery_attempts_1",
+          "origin": "primary key",
+          "unique": true,
+          "where": null
+        }
+      ],
+      "name": "delivery_attempts",
+      "note": "Laporan RTT dari pengirim",
+      "rows": 2069
+    }
+  ]
+}

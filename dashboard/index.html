@@ -24,6 +24,7 @@
     <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 2C8 8 5 11 5 15a7 7 0 0 0 14 0c0-4-3-7-7-13Z"/></symbol>
     <symbol id="i-stack" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="5" rx="1"/><rect x="4" y="10" width="16" height="5" rx="1"/><rect x="4" y="17" width="16" height="4" rx="1"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
   </svg>
   <div class="shell">
     <aside class="sidebar">
@@ -33,6 +34,7 @@
         <a class="nav-item" href="#analytics"><svg><use href="#i-chart"/></svg><span>Analytics</span></a>
         <a class="nav-item" href="#pipeline"><svg><use href="#i-flow"/></svg><span>Data pipeline</span></a>
         <a class="nav-item" href="#events"><svg><use href="#i-list"/></svg><span>Event log</span></a>
+        <a class="nav-item" href="/database"><svg><use href="#i-db"/></svg><span>Database</span></a>
       </nav>
       <div class="sidebar-bottom"><div class="sidebar-status"><span class="pulse-dot" id="side-dot"></span><span id="side-status">Menghubungkan...</span></div><span class="sidebar-caption">ESP32 / Wokwi UTS</span></div>
     </aside>
@@ -67,6 +69,17 @@
           </tbody></table></div>
           <p class="chart-note"><span id="rtt-source-note">Belum ada laporan RTT dari pengirim.</span><br>Hanya laporan yang sampai ke laptop dihitung. Timeout/error tanpa laporan tidak terlihat di sini. RTT mencakup pencatatan lokal; bukan latensi satu arah. Jam simulasi Wokwi berbeda dari jam node demo.</p>
           <div class="table-footer"><span id="rtt-total">0 laporan</span><span>Rentang berdasarkan waktu laporan diterima</span></div>
+        </section>
+
+        <section class="db-grid" id="database-summary" aria-label="Ringkasan basis data">
+          <article class="panel"><div class="panel-heading"><div><h2>Alarm terbaru</h2><p>Tabel alerts, JOIN devices dan readings</p></div><span class="panel-badge" id="alert-badge">0 alarm</span></div>
+            <div class="table-wrap"><table class="compact-table"><thead><tr><th>WAKTU</th><th>PERANGKAT</th><th>PARAMETER</th><th>NILAI</th><th>ATURAN</th><th>TINGKAT</th></tr></thead><tbody id="alerts-body"><tr><td colspan="6" class="empty-row">Belum ada alarm</td></tr></tbody></table></div>
+            <div class="table-footer"><span id="alert-summary">0 kritis &middot; 0 peringatan</span><a class="text-link" href="/database">Struktur tabel &amp; query &rarr;</a></div>
+          </article>
+          <article class="panel"><div class="panel-heading"><div><h2>Ringkasan per jam</h2><p>GROUP BY jam: jumlah, rata-rata, minimum, maksimum</p></div><span class="panel-badge" id="hourly-badge">0 jam</span></div>
+            <div class="table-wrap"><table class="compact-table"><thead><tr><th>JAM (WIB)</th><th>DATA</th><th>SUHU RATA-RATA</th><th>SUHU MIN / MAKS</th><th>KELEMBAPAN RATA-RATA</th></tr></thead><tbody id="hourly-body"><tr><td colspan="5" class="empty-row">Belum ada pembacaan</td></tr></tbody></table></div>
+            <div class="table-footer"><span>Disimpan UTC, ditampilkan WIB</span><span>Mengikuti filter sumber dan sesi</span></div>
+          </article>
         </section>
 
         <section id="pipeline" class="panel pipeline-panel"><div class="panel-heading"><div><h2>Alur data langsung</h2><p>Dari node sensor hingga Supabase lokal</p></div><span class="panel-badge" id="last-event">Belum ada aktivitas</span></div><div class="pipeline"><div class="pipe-node"><span class="pipe-number">01</span><strong>ESP32 / Wokwi</strong><small id="pipe-device">Menunggu perangkat</small></div><div class="pipe-connector"><span>MQTT / HTTP</span><i></i></div><div class="pipe-node"><span class="pipe-number">02</span><strong>Laptop receiver</strong><small id="pipe-receiver">0 diterima</small></div><div class="pipe-connector"><span>commit</span><i></i></div><div class="pipe-node"><span class="pipe-number">03</span><strong>SQLite</strong><small id="pipe-local">0 tercatat</small></div><div class="pipe-connector"><span>sync</span><i></i></div><div class="pipe-node"><span class="pipe-number">04</span><strong>Supabase</strong><small id="pipe-cloud">0 tersinkron</small></div></div><div class="pipeline-bottom"><div><span>Sinkronisasi terakhir</span><strong id="last-sync">Belum ada</strong></div><div><span>Pesan tertunda</span><strong id="backlog">--</strong></div><div><span>Status cloud</span><strong id="sync-detail">Menunggu</strong></div><div><span>Uptime server</span><strong id="uptime">--</strong></div></div></section>

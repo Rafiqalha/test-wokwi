@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Laporan Tugas Basis Data IoT - Rafiq Al-Hariri Andriansyah (240605110178)</title>
+<style>
+  @page { size: A4; margin: 20mm 20mm 18mm 22mm;
+    @bottom-center { content: counter(page); font: 10pt "Times New Roman", Times, serif; color: #444; } }
+  @page :first { @bottom-center { content: none; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: #111; font: 12pt/1.5 "Times New Roman", Times, serif; }
+  h1 { margin: 0 0 14pt; font-size: 14pt; text-align: center; text-transform: uppercase; break-before: page; }
+  h1 small { display: block; font-size: 12pt; }
+  h2 { margin: 14pt 0 6pt; font-size: 12pt; break-after: avoid; }
+  h3 { margin: 10pt 0 4pt; font-size: 12pt; font-style: italic; font-weight: normal; break-after: avoid; }
+  p { margin: 0 0 8pt; text-align: justify; }
+  ul, ol { margin: 0 0 8pt; padding-left: 22pt; }
+  li { margin-bottom: 3pt; text-align: justify; }
+  code { font: 10pt Consolas, "Courier New", monospace; }
+  figure { margin: 10pt 0 14pt; text-align: center; break-inside: avoid; }
+  figure img { max-width: 100%; border: 1px solid #bbb; }
+  figure.code img { width: 82%; }
+  figure.tall img { max-height: 190mm; width: auto; }
+  figcaption { margin-top: 5pt; font-size: 10.5pt; }
+  table { width: 100%; margin: 4pt 0 12pt; border-collapse: collapse; font-size: 10.5pt; line-height: 1.35; break-inside: avoid; }
+  th, td { padding: 3pt 5pt; border: 1px solid #777; text-align: left; vertical-align: top; }
+  th { background: #e9e9e9; }
+  td.num { text-align: right; }
+  .caption { margin: 8pt 0 2pt; font-size: 10.5pt; text-align: center; }
+  .note { padding: 6pt 9pt; background: #f3f3f3; border-left: 3pt solid #777; font-size: 11pt; }
+  .cover { height: 255mm; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .cover-title { margin-top: 18mm; font-size: 12pt; font-weight: bold; line-height: 1.9; }
+  .cover-logo { width: 78mm; margin-top: 14mm; }
+  .cover-id { margin-top: 12mm; font-size: 12pt; line-height: 1.8; }
+  .cover-inst { margin-top: 16mm; font-size: 12pt; font-weight: bold; line-height: 2; }
+  .flow { display: flex; align-items: stretch; justify-content: space-between; gap: 4pt; margin: 8pt 0 4pt; break-inside: avoid; }
+  .flow div { flex: 1; padding: 5pt 4pt; border: 1px solid #666; border-radius: 4pt; background: #f6f6f6; font-size: 9.5pt; line-height: 1.3; text-align: center; }
+  .flow div b { display: block; font-size: 10pt; }
+  .flow span { align-self: center; font-size: 12pt; }
+  .toc { margin-top: 4pt; }
+  .toc li { list-style: none; text-align: left; }
+  .toc ol { padding-left: 16pt; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="cover-title">LAPORAN INTERNET OF THINGS<br>PERTEMUAN 9<br>BASIS DATA UNTUK SISTEM IoT</div>
+  <img class="cover-logo" src="gambar-pdf/logo-uin.jpg" alt="Logo UIN Maulana Malik Ibrahim Malang">
+  <div class="cover-id">Nama : Rafiq Alhariri Andriansyah<br>NIM : 240605110178<br>Kelas : Internet of Things A</div>
+  <div class="cover-inst">TEKNIK INFORMATIKA<br>FAKULTAS SAINS DAN TEKNOLOGI<br>UNIVERSITAS ISLAM NEGERI MAULANA MALIK<br>IBRAHIM MALANG<br>GANJIL 2026/2027</div>
+</section>
+
+<h1>Daftar Isi</h1>
+<ol class="toc">
+  <li>BAB I Pendahuluan</li>
+  <li>BAB II Rancangan Basis Data</li>
+  <li>BAB III Implementasi dan Penjelasan Gambar
+    <ol><li>3.1 Kode CREATE TABLE</li><li>3.2 Kode ingestion yang mengisi tabel</li><li>3.3 Struktur tabel</li><li>3.4 Query dan hasilnya</li><li>3.5 Dashboard</li></ol></li>
+  <li>BAB IV Pengujian Validasi, Timestamp, dan Kualitas Data</li>
+  <li>BAB V Kesimpulan dan Saran</li>
+  <li>Lampiran: Daftar Berkas</li>
+</ol>
+
+<h1>Bab I<small>Pendahuluan</small></h1>
+<h2>1.1 Latar Belakang</h2>
+<p>Proyek UTS membangun sistem pemantauan suhu dan kelembapan. ESP32 dengan sensor DHT22 (simulasi Wokwi) mengirim data ke laptop melalui dua protokol yang dibandingkan, yaitu MQTT (broker Mosquitto) dan HTTP (server Flask). Program penerima <code>server.py</code> mencatat setiap pembacaan ke SQLite (<code>data/sensor.db</code>), menyalinnya ke Supabase, dan menampilkannya pada dashboard real-time.</p>
+<p>Pada versi UTS, basis data hanya berupa log pembacaan dan laporan RTT. Belum ada data induk perangkat, relasi antar tabel, maupun aturan validasi di tingkat basis data. Tugas ini melanjutkan proyek tersebut sesuai materi Pertemuan 9: merancang basis data relasional (perangkat, telemetri, dan alarm), menyimpan data melalui alur ingestion yang tervalidasi, menjalankan query analisis, dan menampilkan hasilnya pada dashboard.</p>
+<h2>1.2 Tujuan</h2>
+<ol>
+  <li>Membuat tabel basis data IoT (CREATE TABLE) lengkap dengan primary key, foreign key, constraint, dan indeks.</li>
+  <li>Menyimpan data sensor melalui alur ingestion yang memvalidasi payload sebelum INSERT.</li>
+  <li>Menjalankan query untuk mengambil, meringkas, menggabungkan (JOIN), dan memeriksa kualitas data.</li>
+  <li>Menampilkan isi dan hasil query basis data pada dashboard.</li>
+</ol>
+<h2>1.3 Lingkungan dan Sumber Data</h2>
+<table>
+  <tr><th style="width:28%">Komponen</th><th>Keterangan</th></tr>
+  <tr><td>Basis data</td><td>SQLite 3.50.4, file <code>data/sensor.db</code>, mode jurnal WAL, foreign key aktif</td></tr>
+  <tr><td>Ingestion</td><td>Python 3.13: Flask (HTTP <code>POST /update</code>, port 5000) dan paho-mqtt (topik <code>sensor/dht22</code>)</td></tr>
+  <tr><td>Broker MQTT</td><td>Mosquitto 2.1.2 pada 127.0.0.1:1883</td></tr>
+  <tr><td>Dashboard</td><td>HTML, CSS, dan JavaScript: <code>http://127.0.0.1:5000/</code> dan halaman baru <code>/database</code></td></tr>
+  <tr><td>Data</td><td>2.263 record dari log pengujian UTS (28 September&ndash;5 Oktober 2026), ditambah 105 record baru pada 2 November 2026. Total 2.368 pembacaan.</td></tr>
+</table>
+<p class="note">Data dikirim oleh node demo Python (<code>demo-node-01</code>, <code>source_mode = demo</code>) yang meniru ESP32. Node ini mengirim bergantian melalui MQTT dan HTTP dengan format payload dan jalur penyimpanan yang sama. Wokwi Private IoT Gateway tidak tersedia, sehingga data bukan hasil ukur DHT22 fisik. Supabase tidak dijalankan pada pengujian ini; data baru tetap aman di SQLite sebagai antrean sinkronisasi.</p>
+
+<h1>Bab II<small>Rancangan Basis Data</small></h1>
+<h2>2.1 Alur Ingestion</h2>
+<div class="flow">
+  <div><b>Device</b>ESP32 / node demo kirim JSON</div><span>&rarr;</span>
+  <div><b>Terima</b>MQTT <code>sensor/dht22</code> atau HTTP <code>/update</code></div><span>&rarr;</span>
+  <div><b>Validasi</b>struktur, tipe, rentang, identitas</div><span>&rarr;</span>
+  <div><b>Simpan</b>transaksi SQLite: devices, readings, alerts</div><span>&rarr;</span>
+  <div><b>Konfirmasi</b>ACK MQTT / respons HTTP 200</div><span>&rarr;</span>
+  <div><b>Aplikasi</b>dashboard, query, salinan Supabase</div>
+</div>
+<p class="caption">Gambar 1. Alur ingestion data sensor pada proyek</p>
+<p>Alur mengikuti tahapan pada materi (terima &rarr; validasi &rarr; normalisasi &rarr; simpan &rarr; konfirmasi). Server menambahkan <code>event_id</code> (UUID), <code>protokol</code>, dan <code>waktu_diterima</code> (UTC). Seluruh penulisan satu pembacaan dilakukan dalam satu transaksi. ACK baru dikirim setelah commit, sehingga data yang sudah dikonfirmasi pasti tersimpan. Pengiriman ulang yang identik dijawab dengan ACK lama tanpa membuat record baru (idempoten).</p>
+
+<h2>2.2 Relasi Antar Tabel</h2>
+<figure><img src="gambar-pdf/db-relasi.jpg" alt="Diagram relasi tabel"><figcaption>Gambar 2. Relasi antar tabel pada halaman Database Explorer</figcaption></figure>
+<p>Gambar 2 adalah diagram relasi yang digambar otomatis dari metadata basis data (PK dan FK dibaca dengan <code>PRAGMA foreign_key_list</code>). Rancangannya mengikuti skema relasional <em>Smart Greenhouse</em> pada materi (DEVICES, SENSOR_READINGS, ALERTS), ditambah satu tabel dari proyek UTS:</p>
+<ul>
+  <li><b>devices</b> (3 baris) adalah tabel induk perangkat dengan PK <code>device_id</code>. Satu perangkat memiliki banyak pembacaan dan banyak alarm (relasi 1 : N, garis bertanda 1 dan N).</li>
+  <li><b>readings</b> (2.368 baris) menyimpan telemetri. PK <code>event_id</code>, FK <code>device_id</code> &rarr; devices.</li>
+  <li><b>alerts</b> (1.609 baris) menyimpan alarm. FK <code>event_id</code> &rarr; readings (pembacaan pemicu) dan FK <code>device_id</code> &rarr; devices.</li>
+  <li><b>delivery_attempts</b> (2.069 baris) menyimpan laporan RTT untuk perbandingan MQTT dan HTTP. Relasinya dengan readings bersifat logis 1 : 0..1 (garis putus-putus) melalui identitas <code>(device_id, session_id, protokol, seq)</code>. FK tidak dipakai karena laporan RTT bisa tiba lebih dulu daripada pembacaannya, atau pembacaannya gagal terkirim.</li>
+</ul>
+<p>Tabel readings memakai pola time-series di dalam basis data relasional. <code>waktu_diterima</code> berperan sebagai timestamp; <code>device_id</code>, <code>session_id</code>, <code>source_mode</code>, dan <code>protokol</code> berperan sebagai tag untuk filter; <code>suhu</code> dan <code>kelembapan</code> berperan sebagai field nilai. Indeks <code>(device_id, waktu_diterima)</code> mempercepat query berbasis waktu, sedangkan relasi dan constraint menjaga integritas data perangkat dan alarm.</p>
+
+<h2>2.3 Timestamp</h2>
+<ul>
+  <li><b>Ingestion time</b> &ndash; <code>waktu_diterima</code> dibuat server saat pesan diterima, sebelum validasi dan penyimpanan. Formatnya ISO 8601 UTC dengan milidetik, misalnya <code>2026-11-02T04:13:42.297+00:00</code>. Dashboard dan query mengonversinya ke WIB (UTC+7) hanya saat ditampilkan.</li>
+  <li><b>Waktu perangkat</b> &ndash; <code>sent_ms</code> adalah <code>millis()</code> pengirim (lama menyala), bukan waktu absolut. Nilai ini tidak boleh dikurangkan dari waktu UTC server.</li>
+  <li><b>Event time</b> absolut belum tersedia karena ESP32 tidak memakai RTC/NTP. Urutan kejadian dalam satu sesi dijaga oleh nomor urut <code>seq</code>.</li>
+  <li>Constraint <code>CHECK (waktu_diterima LIKE '____-__-__T__:__:__%+00:00')</code> menolak timestamp yang tidak berformat UTC. Karena formatnya seragam, urutan teks sama dengan urutan waktu sehingga indeks dapat dipakai untuk filter rentang waktu.</li>
+</ul>
+
+<h1>Bab III<small>Implementasi dan Penjelasan Gambar</small></h1>
+<h2>3.1 Kode CREATE TABLE</h2>
+<p>Seluruh tabel didefinisikan dalam satu berkas <code>database/schema.sql</code>. Fungsi <code>init_db()</code> di <code>server.py</code> menjalankan berkas ini setiap kali server dimulai. Semua pernyataan memakai <code>IF NOT EXISTS</code> sehingga aman dijalankan berulang kali.</p>
+<figure class="code tall"><img src="gambar-pdf/kode-schema-1.jpg" alt="Kode CREATE TABLE devices dan readings"><figcaption>Gambar 3. Kode CREATE TABLE <code>devices</code>, <code>readings</code>, dan indeksnya (database/schema.sql baris 1&ndash;51)</figcaption></figure>
+<p>Penjelasan Gambar 3:</p>
+<ul>
+  <li><b>Baris 9&ndash;18, tabel devices.</b> <code>device_id</code> adalah PRIMARY KEY NOT NULL dengan CHECK panjang 1&ndash;32 karakter, sama dengan aturan validasi payload. <code>nama</code> wajib diisi, <code>lokasi</code> opsional. <code>status</code> berisi default <code>'aktif'</code> dengan CHECK <code>aktif/nonaktif</code>; perangkat nonaktif akan ditolak saat ingestion. <code>pertama_terlihat</code> dan <code>terakhir_terlihat</code> diisi otomatis oleh server.</li>
+  <li><b>Baris 21&ndash;43, tabel readings.</b> <code>event_id</code> (UUID dari server) menjadi PRIMARY KEY. <code>device_id</code> memakai <code>REFERENCES devices(device_id)</code>, sehingga pembacaan dari perangkat yang tidak terdaftar ditolak basis data. Setiap kolom nilai diberi CHECK sesuai rentang sensor DHT22: suhu &minus;40 sampai 125 &deg;C, kelembapan 0 sampai 100 %RH. Protokol hanya boleh MQTT atau HTTP, <code>source_mode</code> hanya dht22/random/demo/unknown, dan <code>seq</code>/<code>sent_ms</code> berada pada rentang bilangan 32-bit. Kolom <code>local_write_ms</code>, <code>synced_at</code>, dan <code>sync_request_ms</code> menyimpan metadata proses.</li>
+  <li><b>Baris 44&ndash;51, indeks.</b> <code>readings_received_idx</code> mempercepat pengambilan data terbaru. <code>readings_device_time_idx</code> mengikuti saran materi (indeks <code>device_id</code>, <code>timestamp</code>). <code>readings_identity_idx</code> adalah indeks UNIQUE pada <code>(device_id, session_id, protokol, seq)</code> sebagai kunci idempotensi, sehingga pengiriman ulang tidak menghasilkan record ganda. Klausa <code>WHERE session_id IS NOT NULL</code> membuat data lama tanpa sesi tetap dapat disimpan.</li>
+</ul>
+<figure class="code tall"><img src="gambar-pdf/kode-schema-2.jpg" alt="Kode CREATE TABLE delivery_attempts dan alerts"><figcaption>Gambar 4. Kode CREATE TABLE <code>delivery_attempts</code>, <code>alerts</code>, dan data awal perangkat (baris 53&ndash;101)</figcaption></figure>
+<p>Penjelasan Gambar 4:</p>
+<ul>
+  <li><b>Baris 54&ndash;75, tabel delivery_attempts.</b> Tabel ini menyimpan laporan RTT dari pengirim. <code>event_id</code> berupa UUID v5 yang dihitung dari identitas pengiriman. <code>status</code> dibatasi <code>ok/timeout/error</code>. Constraint tingkat tabel mewajibkan <code>rtt_ms</code> terisi (0&ndash;120.000 ms) jika status <code>ok</code> dan kosong jika gagal, sehingga kegagalan tidak dihitung sebagai RTT 0. UNIQUE pada identitas mencegah laporan ganda.</li>
+  <li><b>Baris 78&ndash;93, tabel alerts.</b> <code>alert_id</code> INTEGER PRIMARY KEY AUTOINCREMENT. <code>event_id</code> merujuk ke readings dengan <code>ON DELETE CASCADE</code>, sehingga alarm ikut terhapus saat data mentah dihapus pada proses retensi. <code>device_id</code> merujuk ke devices. <code>parameter</code> dan <code>severity</code> dibatasi CHECK, dan <code>UNIQUE (event_id, parameter)</code> memastikan maksimal satu alarm per parameter untuk setiap pembacaan.</li>
+  <li><b>Baris 94&ndash;101.</b> Indeks <code>alerts_device_time_idx</code> dipakai untuk menampilkan alarm terbaru per perangkat. <code>INSERT OR IGNORE</code> mengisi data awal dua perangkat yang dikenal tanpa menimpa perubahan manual; perangkat lain akan didaftarkan otomatis.</li>
+</ul>
+
+<h2>3.2 Kode Ingestion yang Mengisi Tabel</h2>
+<figure class="code"><img src="gambar-pdf/kode-init-db.jpg" alt="Kode init_db"><figcaption>Gambar 5. Fungsi <code>register_devices()</code>, <code>record_alerts()</code>, dan <code>init_db()</code> pada server.py</figcaption></figure>
+<ul>
+  <li><b>init_db()</b> mengaktifkan mode WAL, lalu dalam satu transaksi memperbarui tabel versi UTS dan menjalankan <code>schema.sql</code>. Tabel lama yang belum memiliki FK/CHECK dibangun ulang tanpa kehilangan data. Fungsi ini juga mendaftarkan perangkat dari data lama, menghitung alarm historis satu kali, dan menutup proses dengan <code>PRAGMA foreign_key_check</code> untuk memastikan tidak ada relasi yatim. Pada database UTS, 2.263 pembacaan dan 1.964 laporan RTT tetap utuh (jumlah dan total nilainya sama sebelum dan sesudah), 1.609 alarm historis terbentuk, dan <code>PRAGMA integrity_check</code> bernilai <code>ok</code>.</li>
+  <li><b>register_devices()</b> memakai <code>INSERT &hellip; SELECT &hellip; GROUP BY device_id</code> dengan UPSERT (<code>ON CONFLICT DO UPDATE</code>). Hasilnya, waktu pertama dan terakhir terlihat diperbarui tanpa menimpa nama, lokasi, atau status yang diisi manual.</li>
+  <li><b>record_alerts()</b> menjalankan <code>INSERT &hellip; SELECT</code> untuk setiap aturan ambang: suhu &ge; 32 &deg;C (kritis), suhu &ge; 30 &deg;C (peringatan), kelembapan &ge; 80 %RH (peringatan), dan kelembapan &le; 50 %RH (peringatan). Aturan terparah dievaluasi lebih dulu, dan <code>ON CONFLICT(event_id, parameter) DO NOTHING</code> membuat hanya alarm terparah per parameter yang tersimpan. Ambang ini adalah asumsi demo dan dapat diubah sesuai kebutuhan ruangan.</li>
+</ul>
+<figure class="code tall"><img src="gambar-pdf/kode-save-reading.jpg" alt="Kode save_reading"><figcaption>Gambar 6. Fungsi <code>save_reading()</code>: validasi, idempotensi, pendaftaran perangkat, INSERT, dan alarm</figcaption></figure>
+<p>Gambar 6 menunjukkan jalur penyimpanan yang dipakai bersama oleh MQTT dan HTTP. Payload divalidasi terlebih dahulu dengan <code>validate_payload()</code>. Transaksi <code>BEGIN IMMEDIATE</code> lalu memeriksa identitas: retry identik mengembalikan record lama, sedangkan identitas sama dengan isi berbeda ditolak sebagai konflik (HTTP 409). Setelah itu status perangkat diperiksa; perangkat nonaktif ditolak (HTTP 403, MQTT tanpa ACK). Perangkat didaftarkan atau diperbarui dengan UPSERT, pembacaan disimpan dengan parameter terikat (<code>?</code>) sehingga nilai payload tidak pernah dirangkai menjadi SQL, dan alarm dibuat dengan <code>record_alerts()</code>. Durasi hingga commit dicatat pada <code>local_write_ms</code>.</p>
+
+<h2>3.3 Struktur Tabel</h2>
+<p>Struktur tabel ditampilkan oleh halaman baru <b>Database Explorer</b> (<code>/database</code>) pada dashboard. Isinya dibaca langsung dari skema yang aktif melalui <code>PRAGMA table_info</code>, <code>foreign_key_list</code>, <code>index_list</code>, dan teks DDL di <code>sqlite_master</code>, bukan ditulis manual. Koneksi halaman ini bersifat baca-saja (<code>PRAGMA query_only</code>).</p>
+<figure><img src="gambar-pdf/db-atas.jpg" alt="Database Explorer"><figcaption>Gambar 7. Halaman Database Explorer: informasi basis data dan jumlah baris setiap tabel</figcaption></figure>
+<p>Gambar 7 menunjukkan engine SQLite 3.50.4, file <code>data/sensor.db</code> berukuran sekitar 2,4 MB, dan mode jurnal WAL dengan foreign key aktif. Jumlah barisnya adalah devices 3, readings 2.368, alerts 1.609, dan delivery_attempts 2.069. Tabel devices berisi dua perangkat awal dan <code>esp32-02</code> yang sengaja didaftarkan berstatus nonaktif untuk uji validasi identitas.</p>
+<figure><img src="gambar-pdf/db-tabel-devices.jpg" alt="Struktur tabel devices"><figcaption>Gambar 8. Struktur tabel <code>devices</code></figcaption></figure>
+<figure><img src="gambar-pdf/db-tabel-readings.jpg" alt="Struktur tabel readings"><figcaption>Gambar 9. Struktur tabel <code>readings</code></figcaption></figure>
+<p>Kolom pada Gambar 8 dan 9 berarti: <b>TIPE</b> adalah kelas penyimpanan SQLite (TEXT, INTEGER, REAL); <b>NULL</b> menunjukkan apakah kolom wajib diisi; <b>KUNCI</b> menandai PK atau FK beserta tabel rujukannya; <b>ATURAN CHECK</b> adalah aturan validasi di tingkat basis data; dan <b>KETERANGAN</b> diambil dari komentar pada schema.sql. Tabel devices memiliki 6 kolom dengan PK <code>device_id</code> dan default status <code>'aktif'</code>. Tabel readings memiliki 13 kolom: PK <code>event_id</code>, FK <code>device_id &rarr; devices(device_id)</code>, tujuh aturan CHECK, dan empat indeks, termasuk indeks unik parsial <code>readings_identity_idx</code>. Timestamp disimpan sebagai TEXT ISO 8601 karena SQLite tidak memiliki tipe tanggal khusus.</p>
+<figure><img src="gambar-pdf/db-tabel-alerts.jpg" alt="Struktur tabel alerts"><figcaption>Gambar 10. Struktur tabel <code>alerts</code></figcaption></figure>
+<figure><img src="gambar-pdf/db-tabel-delivery_attempts.jpg" alt="Struktur tabel delivery_attempts"><figcaption>Gambar 11. Struktur tabel <code>delivery_attempts</code></figcaption></figure>
+<p>Gambar 10 memperlihatkan dua foreign key pada alerts: <code>event_id &rarr; readings(event_id) on delete cascade</code> dan <code>device_id &rarr; devices(device_id)</code>, serta constraint tingkat tabel <code>unique (event_id, parameter)</code>. Gambar 11 memperlihatkan delivery_attempts dengan 10 kolom, constraint UNIQUE pada identitas pengiriman, dan CHECK yang menghubungkan <code>status</code> dengan <code>rtt_ms</code>. Bagian INDEKS menunjukkan indeks buatan sendiri dan indeks otomatis yang dibuat SQLite untuk PRIMARY KEY dan UNIQUE.</p>
+
+<h2>3.4 Query dan Hasilnya</h2>
+<p>Query disimpan di <code>database/queries.sql</code> dan dijalankan oleh halaman Database Explorer pada 2 November 2026 pukul 11.14 WIB, setelah node demo berhenti. Setiap gambar memuat SQL, hasil, waktu eksekusi, dan rencana eksekusi (<code>EXPLAIN QUERY PLAN</code>). Karena memakai SQLite, fungsi PostgreSQL pada materi (<code>date_trunc</code>, <code>NOW() - INTERVAL</code>) diganti dengan <code>strftime()</code>.</p>
+<figure><img src="gambar-pdf/db-query-1.jpg" alt="Query 1"><figcaption>Gambar 12. Query 1 &ndash; pembacaan terbaru satu perangkat dalam 1 jam terakhir</figcaption></figure>
+<p><b>Query 1</b> memilih kolom, memfilter perangkat <code>demo-node-01</code> dan rentang 1 jam terakhir, lalu mengurutkan dari yang terbaru (materi slide 14). Batas waktu dibuat dengan format UTC yang sama dengan kolom, sehingga perbandingan tetap memakai indeks. Hasilnya 10 baris terbaru. Baris teratas diterima pukul <code>04:13:42.297</code> UTC (11.13.42 WIB) dengan seq 30, HTTP, 26 &deg;C, dan 66,8 %RH. Nilai <code>seq</code> bergantian MQTT (ganjil) dan HTTP (genap), membuktikan kedua protokol tersimpan di tabel yang sama. Rencana eksekusi <code>SEARCH readings USING INDEX readings_device_time_idx (device_id=? AND waktu_diterima&gt;?)</code> menunjukkan indeks benar-benar dipakai, sehingga query selesai dalam kurang dari 1 ms.</p>
+<figure><img src="gambar-pdf/db-query-2.jpg" alt="Query 2"><figcaption>Gambar 13. Query 2 &ndash; agregasi suhu dan kelembapan per jam</figcaption></figure>
+<p><b>Query 2</b> meringkas data mentah per jam dengan <code>COUNT</code>, <code>AVG</code>, <code>MIN</code>, dan <code>MAX</code> (materi slide 15). Waktu disimpan UTC dan dikonversi ke WIB dengan <code>strftime(&hellip;, '+7 hours')</code> hanya untuk tampilan. Sebanyak 2.366 baris milik <code>demo-node-01</code> diringkas menjadi 5 baris:</p>
+<table>
+  <tr><th>Jam (WIB)</th><th>Jumlah</th><th>Suhu rata-rata</th><th>Suhu min&ndash;maks</th><th>Kelembapan rata-rata</th></tr>
+  <tr><td>2026-11-02 11:00</td><td class="num">105</td><td class="num">26,69 &deg;C</td><td class="num">24,0&ndash;29,1 &deg;C</td><td class="num">64,16 %RH</td></tr>
+  <tr><td>2026-10-05 08:00</td><td class="num">138</td><td class="num">33,02 &deg;C</td><td class="num">31,2&ndash;34,0 &deg;C</td><td class="num">78,88 %RH</td></tr>
+  <tr><td>2026-10-05 07:00</td><td class="num">1.011</td><td class="num">29,59 &deg;C</td><td class="num">24,0&ndash;34,0 &deg;C</td><td class="num">69,40 %RH</td></tr>
+  <tr><td>2026-10-05 06:00</td><td class="num">816</td><td class="num">30,56 &deg;C</td><td class="num">24,0&ndash;34,0 &deg;C</td><td class="num">73,35 %RH</td></tr>
+  <tr><td>2026-09-28 16:00</td><td class="num">296</td><td class="num">31,04 &deg;C</td><td class="num">26,4&ndash;34,0 &deg;C</td><td class="num">61,40 %RH</td></tr>
+</table>
+<p>AVG menggambarkan kondisi umum setiap jam, sedangkan MAX menunjukkan nilai puncak. Jam 08.00 WIB pada 5 Oktober paling panas (rata-rata 33,02 &deg;C), sedangkan sesi 2 November paling sejuk. Ringkasan seperti ini menjadi dasar <em>downsampling</em> untuk kebijakan retensi.</p>
+<figure><img src="gambar-pdf/db-query-3.jpg" alt="Query 3"><figcaption>Gambar 14. Query 3 &ndash; JOIN tabel alerts dan devices</figcaption></figure>
+<p><b>Query 3</b> menggabungkan <code>alerts</code> dengan <code>devices</code> melalui foreign key <code>device_id</code>, lalu mengelompokkan per perangkat, parameter, dan tingkat keparahan. Hasilnya tiga kelompok untuk Node demo Python: suhu kritis 882 alarm (32&ndash;34 &deg;C), suhu peringatan 510 alarm (30&ndash;31,9 &deg;C), dan kelembapan peringatan 217 alarm (80,1&ndash;84 %RH). Totalnya 1.609, sama dengan jumlah baris tabel alerts. Alarm terakhir terjadi pada 5 Oktober 2026 pukul 08.04 WIB. Data 2 November tidak memicu alarm karena suhu maksimumnya 29,1 &deg;C, dan tidak ada pembacaan dengan kelembapan &le; 50 %RH. Rencana eksekusi menunjukkan JOIN mencari perangkat melalui indeks primary key devices.</p>
+<figure><img src="gambar-pdf/db-query-4.jpg" alt="Query 4"><figcaption>Gambar 15. Query 4 &ndash; pemeriksaan kualitas data per sesi</figcaption></figure>
+<p><b>Query 4</b> mengukur dimensi kualitas data dari materi. Window function <code>LAG()</code> membandingkan waktu setiap record dengan record ber-<code>seq</code> sebelumnya. Kolom <code>seharusnya</code> dihitung dari <code>MAX(seq) - MIN(seq) + 1</code>. Hasilnya ada lima sesi: tiga dari 5 Oktober (816, 292, dan 857 record) dan dua dari 2 November (75 dan 30 record). Semua sesi memiliki <code>jumlah = seharusnya</code>, <code>seq_hilang = 0</code> (completeness), <code>duplikat = 0</code> (uniqueness), <code>waktu_mundur = 0</code>, dan <code>bukan_utc = 0</code> (konsistensi timestamp). Sebanyak 298 record format lama tanpa <code>session_id</code> tidak ikut dihitung karena tidak memiliki nomor urut per sesi.</p>
+<figure><img src="gambar-pdf/db-query-5.jpg" alt="Query 5"><figcaption>Gambar 16. Query 5 &ndash; perbandingan MQTT dan HTTP (lanjutan UTS)</figcaption></figure>
+<p><b>Query 5</b> melanjutkan topik UTS. Query ini memakai <code>LEFT JOIN</code> antara readings dan delivery_attempts berdasarkan identitas pengiriman. LEFT JOIN dipilih agar pembacaan tanpa laporan RTT tetap terhitung. HTTP memiliki 1.034 pembacaan dan 1.033 laporan RTT (satu laporan tidak sampai), dengan RTT rata-rata 35,83 ms (9,95&ndash;336,69 ms). MQTT memiliki 1.036 pembacaan dan 1.036 laporan, dengan RTT rata-rata 26,85 ms (5,34&ndash;320,2 ms). Waktu tulis lokal keduanya hampir sama (21,3 ms dan 20,8 ms). Pada data demo lokal ini MQTT lebih cepat, karena koneksinya dipertahankan sementara HTTP membuat request baru setiap pembacaan. Hasil ini belum mewakili jaringan ESP32 sebenarnya.</p>
+
+<h2>3.5 Dashboard</h2>
+<figure><img src="gambar-pdf/dash-atas.jpg" alt="Dashboard utama"><figcaption>Gambar 17. Dashboard utama saat node sensor mengirim data (status LIVE SENSOR)</figcaption></figure>
+<p>Gambar 17 diambil pukul 11.13.12 WIB ketika node demo sedang mengirim data, sehingga statusnya <b>LIVE SENSOR</b>. Kartu ringkasan menampilkan suhu terbaru 26,3 &deg;C dan kelembapan 68,8 %RH (MQTT, seq 15), total 2.353 pembacaan (MQTT 1.177, HTTP 1.176), serta 90 record menunggu sinkronisasi. Jumlah ini sedikit lebih kecil daripada hasil query (2.368) karena node masih berjalan saat gambar diambil. Grafik kiri menghitung pesan MQTT dan HTTP per interval; grafik kanan menampilkan tren suhu dan kelembapan pada rentang 15 menit. Semua angka berasal dari endpoint <code>/api/dashboard</code> yang membaca tabel SQLite.</p>
+<figure><img src="gambar-pdf/dash-status-rtt.jpg" alt="Status dan RTT"><figcaption>Gambar 18. Status layanan, korelasi, waktu tulis lokal, dan perbandingan RTT</figcaption></figure>
+<p>Gambar 18 menunjukkan status layanan: data sensor masuk, broker MQTT terhubung, database lokal SQLite siap, dan Supabase belum dikonfigurasi (sengaja tidak dijalankan). Diagram sebar memuat 90 titik pembacaan pada rentang 15 menit. Waktu tulis lokal hingga commit memiliki median 4,49 ms dan p95 5,24 ms. Tabel RTT dari delivery_attempts menunjukkan median MQTT 9,01 ms (45 sampel) dan HTTP 22,58 ms (44 sampel) tanpa timeout maupun error.</p>
+<figure><img src="gambar-pdf/dash-database.jpg" alt="Panel basis data di dashboard"><figcaption>Gambar 19. Panel baru di dashboard: Alarm terbaru dan Ringkasan per jam</figcaption></figure>
+<p>Gambar 19 adalah panel baru hasil pengembangan tugas ini. <b>Alarm terbaru</b> menampilkan hasil JOIN alerts&ndash;devices&ndash;readings (total 1.609 alarm: 882 kritis dan 727 peringatan). <b>Ringkasan per jam</b> menampilkan agregasi GROUP BY per jam dengan logika yang sama seperti Query 2. Waktu disimpan UTC dan ditampilkan WIB. Kedua panel mengikuti filter sumber data dan sesi di bagian atas dashboard.</p>
+<figure><img src="gambar-pdf/dash-event-log.jpg" alt="Alur data dan event log"><figcaption>Gambar 20. Alur data langsung dan event log pembacaan terbaru</figcaption></figure>
+<p>Gambar 20 memperlihatkan alur ESP32/node &rarr; receiver (2.353 diterima) &rarr; SQLite (2.353 tercatat) &rarr; Supabase (2.263 tersinkron dari pengujian sebelumnya). Karena Supabase tidak dijalankan, 90 pembacaan dan 89 laporan metrik tercatat sebagai tertunda; data tetap aman di SQLite dan akan diunggah saat layanan tersedia (prinsip <em>store and forward</em>). Event log menampilkan 12 pembacaan terbaru beserta protokol, seq, sumber, nilai sensor, durasi tulis lokal sekitar 4&ndash;5 ms, RTT, dan status sinkronisasi.</p>
+
+<h1>Bab IV<small>Pengujian Validasi, Timestamp, dan Kualitas Data</small></h1>
+<h2>4.1 Penolakan Payload Salah</h2>
+<p>Pengujian dijalankan dengan skrip <code>tugas/basis-data/tools/validasi.py</code> terhadap receiver yang sedang berjalan, melalui request HTTP dan pesan MQTT nyata. Jumlah record diperiksa sebelum dan sesudah setiap kasus.</p>
+<table>
+  <tr><th style="width:4%">No</th><th style="width:31%">Kasus uji</th><th style="width:14%">Diharapkan</th><th style="width:12%">Hasil</th><th>Pesan server</th></tr>
+  <tr><td>1</td><td>Suhu berupa teks</td><td>400</td><td>400</td><td>suhu harus angka terbatas</td></tr>
+  <tr><td>2</td><td>Suhu 200 &deg;C (di luar rentang DHT22)</td><td>400</td><td>400</td><td>suhu di luar rentang DHT22</td></tr>
+  <tr><td>3</td><td>Kelembapan di atas 100 %</td><td>400</td><td>400</td><td>kelembapan di luar rentang DHT22</td></tr>
+  <tr><td>4</td><td>Field suhu hilang</td><td>400</td><td>400</td><td>Field sensor tidak lengkap atau tidak dikenal</td></tr>
+  <tr><td>5</td><td>Field asing ditambahkan</td><td>400</td><td>400</td><td>Field sensor tidak lengkap atau tidak dikenal</td></tr>
+  <tr><td>6</td><td><code>device_id</code> mengandung spasi</td><td>400</td><td>400</td><td>device_id tidak valid</td></tr>
+  <tr><td>7</td><td><code>seq</code> negatif</td><td>400</td><td>400</td><td>seq harus bilangan bulat 0..4294967295</td></tr>
+  <tr><td>8</td><td><code>source_mode</code> tidak dikenal</td><td>400</td><td>400</td><td>source_mode harus dht22, random, atau demo</td></tr>
+  <tr><td>9</td><td>JSON rusak</td><td>400</td><td>400</td><td>Body harus objek JSON</td></tr>
+  <tr><td>10</td><td>Content-Type bukan JSON</td><td>415</td><td>415</td><td>Content-Type harus application/json</td></tr>
+  <tr><td>11</td><td>Perangkat nonaktif (<code>esp32-02</code>)</td><td>403</td><td>403</td><td>Perangkat dinonaktifkan pada tabel devices</td></tr>
+  <tr><td>12</td><td>Retry identik record tersimpan</td><td>200, ACK lama</td><td>200</td><td>event_id sama dengan record pertama</td></tr>
+  <tr><td>13</td><td>Identitas sama, nilai berbeda</td><td>409</td><td>409</td><td>Identitas pembacaan sudah dipakai untuk data berbeda</td></tr>
+  <tr><td>14</td><td>Kelembapan 150 % melalui MQTT</td><td>tanpa ACK</td><td>tanpa ACK</td><td>ditolak validasi subscriber</td></tr>
+</table>
+<p>Ke-14 kasus lulus. Jumlah record tetap 2.338 sebelum dan sesudah setiap kasus, sehingga payload salah tidak masuk ke basis data dan retry tidak membuat record ganda. Selain validasi di aplikasi, CHECK dan foreign key pada tabel menjadi lapisan pengaman kedua; uji otomatis membuktikan INSERT langsung dengan suhu 200 &deg;C atau perangkat tidak terdaftar ditolak SQLite.</p>
+
+<h2>4.2 Timestamp dan Kualitas Data</h2>
+<table>
+  <tr><th style="width:18%">Dimensi</th><th style="width:44%">Bukti</th><th>Hasil</th></tr>
+  <tr><td>Completeness</td><td>Query 4: <code>seq_hilang</code> per sesi</td><td>0 nomor hilang pada 5 sesi (2.070 record bersesi)</td></tr>
+  <tr><td>Accuracy</td><td>Validasi rentang dan CHECK suhu/kelembapan</td><td>Semua nilai dalam rentang DHT22. Akurasi fisik tidak diklaim karena data berasal dari node demo.</td></tr>
+  <tr><td>Consistency</td><td>Query 4: <code>bukan_utc</code>; tipe REAL dan satuan &deg;C / %RH</td><td>0 timestamp non-UTC; format dan satuan seragam</td></tr>
+  <tr><td>Timeliness</td><td>Query 4: <code>waktu_mundur</code>; Gambar 18: waktu tulis dan RTT</td><td>0 waktu mundur; median tulis lokal 4,49 ms; median RTT 9,01 ms (MQTT) dan 22,58 ms (HTTP)</td></tr>
+  <tr><td>Uniqueness</td><td>Query 4: <code>duplikat</code>; indeks unik identitas; uji retry</td><td>0 duplikat; retry dijawab ACK lama, konflik ditolak 409</td></tr>
+</table>
+
+<h2>4.3 Retensi dan Koneksi Terputus</h2>
+<p>Retensi belum dijalankan otomatis; rancangannya mengikuti materi slide 16. Data mentah disimpan 7 hari, ringkasan per jam hasil Query 2 disimpan 2 tahun, dan data lama diarsipkan ke CSV (dashboard sudah menyediakan ekspor CSV). Saat data mentah dihapus, alarm terkait ikut terhapus otomatis karena <code>ON DELETE CASCADE</code>. Untuk koneksi terputus, receiver menyimpan data ke SQLite lebih dulu sebelum sinkronisasi cloud, dan kunci idempotensi <code>(device_id, session_id, protokol, seq)</code> mencegah duplikasi saat perangkat mengirim ulang.</p>
+
+<h2>4.4 Uji Otomatis</h2>
+<p>Sebanyak 33 tes Python (26 tes proyek UTS dan 7 tes baru untuk basis data) serta 6 tes JavaScript dashboard lulus. Tes baru mencakup FK dan CHECK pada skema baru, pendaftaran perangkat dan alarm terparah, penolakan perangkat nonaktif melalui HTTP dan MQTT, migrasi log versi UTS tanpa kehilangan data, penanganan data lama yang melanggar aturan baru, serta halaman Database Explorer yang hanya dapat membaca.</p>
+
+<h1>Bab V<small>Kesimpulan dan Saran</small></h1>
+<h2>5.1 Kesimpulan</h2>
+<ol>
+  <li>Basis data proyek UTS berhasil dikembangkan menjadi empat tabel relasional: <code>devices</code>, <code>readings</code>, <code>alerts</code>, dan <code>delivery_attempts</code>. Skemanya dilengkapi primary key, tiga foreign key, constraint CHECK dan UNIQUE, serta indeks. Skema ditulis di <code>database/schema.sql</code>, dijalankan otomatis, dan log UTS lama dimigrasikan tanpa kehilangan data.</li>
+  <li>Target demo Pertemuan 9 tercapai: 2.368 record tersimpan (minimal 20), timestamp konsisten dalam UTC (0 waktu mundur dan 0 non-UTC), lima query berjalan dengan hasil (minimal tiga), dan 14 payload salah ditolak tanpa menambah record.</li>
+  <li>Dashboard menampilkan data real-time, alarm terbaru, dan ringkasan per jam. Halaman Database Explorer menampilkan relasi, struktur tabel, serta hasil query langsung dari basis data.</li>
+  <li>Pada data demo lokal, rata-rata RTT MQTT (26,85 ms) lebih rendah daripada HTTP (35,83 ms). Kesimpulan umum memerlukan pengujian dengan ESP32 dan DHT22 pada jaringan sebenarnya.</li>
+</ol>
+<h2>5.2 Saran</h2>
+<ul>
+  <li>Menjalankan pengujian dengan ESP32 dan DHT22 melalui Wokwi Private Gateway atau perangkat fisik.</li>
+  <li>Menambahkan event time absolut dari NTP pada payload ESP32.</li>
+  <li>Menyalin tabel devices dan alerts ke Supabase, serta menjalankan job retensi terjadwal.</li>
+  <li>Mengurangi alarm berulang dengan mencatat alarm hanya saat status berubah.</li>
+</ul>
+
+<h1>Lampiran<small>Daftar Berkas</small></h1>
+<table>
+  <tr><th style="width:42%">Berkas</th><th>Isi</th></tr>
+  <tr><td><code>database/schema.sql</code></td><td>Kode CREATE TABLE, indeks, dan data awal perangkat</td></tr>
+  <tr><td><code>database/queries.sql</code></td><td>Lima query analisis yang dijalankan halaman /database</td></tr>
+  <tr><td><code>server.py</code></td><td>Ingestion MQTT/HTTP, validasi, migrasi, registrasi perangkat, dan alarm</td></tr>
+  <tr><td><code>dashboard_state.py</code></td><td>Data dashboard, struktur tabel, dan eksekusi query baca-saja</td></tr>
+  <tr><td><code>dashboard/index.html</code>, <code>app.js</code></td><td>Dashboard utama beserta panel alarm dan ringkasan per jam</td></tr>
+  <tr><td><code>dashboard/database.html</code>, <code>database.js</code></td><td>Halaman Database Explorer (relasi, struktur, query)</td></tr>
+  <tr><td><code>tests/test_database.py</code></td><td>Tes otomatis fitur basis data</td></tr>
+  <tr><td><code>tugas/basis-data/</code></td><td>Laporan ini, gambar, skrip pengambil gambar, dan bukti (database.json, validasi.json)</td></tr>
+</table>
+
+</body>
+</html>

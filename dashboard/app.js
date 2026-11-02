@@ -7,6 +7,7 @@ const fmtInt = new Intl.NumberFormat("id-ID");
 const fmtTime = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 const fmtShort = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hour12: false });
 const fmtDate = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+const fmtDay = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short" });
 const toMs = (value) => value ? Date.parse(value) : NaN;
 const shortTime = (value) => Number.isFinite(toMs(value)) ? fmtShort.format(new Date(value)) : "—";
 const dateTime = (value) => Number.isFinite(toMs(value)) ? fmtDate.format(new Date(value)) : "—";
@@ -222,7 +223,34 @@ function renderTable(data) {
   set("event-count", `${rows.length} event`);
   set("table-summary", `Menampilkan ${rows.length} dari ${data.readings.length} pembacaan terbaru${data.totals.total > data.readings.length ? ` (maks. ${data.window_limit} dimuat)` : ""}`);
 }
-function render() { if (!state.snapshot) return; const rows = rangeRows(); renderSummary(state.snapshot); renderTrend(rows); renderThroughput(rows); renderScatter(rows); renderLatency(rows); renderRtt(); renderTable(state.snapshot); }
+const parameterLabel = (value) => ({ suhu: "Suhu", kelembapan: "Kelembapan" })[value] || value;
+const unitOf = (parameter) => parameter === "suhu" ? "°C" : "%RH";
+function hourLabel(value) {
+  const start = toMs(value);
+  if (!Number.isFinite(start)) return "—";
+  return `${fmtDay.format(new Date(start))} ${fmtShort.format(new Date(start))}–${fmtShort.format(new Date(start + 3600000))}`;
+}
+function fillRows(id, items, columns, emptyText, cells) {
+  const body = $(id); body.replaceChildren();
+  if (!items.length) { const tr = document.createElement("tr"); makeCell(tr, emptyText, "empty-row"); tr.firstChild.colSpan = columns; body.append(tr); }
+  for (const item of items) { const tr = document.createElement("tr"); for (const value of cells(item)) makeCell(tr, value); body.append(tr); }
+}
+function renderAlerts(data) {
+  const totals = data.alert_totals || {};
+  fillRows("alerts-body", data.alerts || [], 6, "Belum ada alarm untuk filter ini", (item) => [
+    dateTime(item.waktu), item.nama || item.device_id, parameterLabel(item.parameter),
+    `${number(item.nilai)} ${unitOf(item.parameter)}`, item.pesan, tag(item.severity, `severity-tag ${item.severity}`)]);
+  set("alert-badge", `${fmtInt.format(totals.total || 0)} alarm`);
+  set("alert-summary", `${fmtInt.format(totals.kritis || 0)} kritis · ${fmtInt.format(totals.peringatan || 0)} peringatan`);
+}
+function renderHourly(data) {
+  const rows = data.hourly || [];
+  fillRows("hourly-body", rows, 5, "Belum ada pembacaan untuk filter ini", (item) => [
+    hourLabel(item.jam_utc), fmtInt.format(item.jumlah), `${number(item.suhu_rata, 2)} °C`,
+    `${number(item.suhu_min)} / ${number(item.suhu_maks)} °C`, `${number(item.kelembapan_rata, 2)} %RH`]);
+  set("hourly-badge", `${rows.length} jam`);
+}
+function render() { if (!state.snapshot) return; const rows = rangeRows(); renderSummary(state.snapshot); renderTrend(rows); renderThroughput(rows); renderScatter(rows); renderLatency(rows); renderRtt(); renderTable(state.snapshot); renderAlerts(state.snapshot); renderHourly(state.snapshot); }
 
 async function refresh() {
   if (state.fetching || state.paused) return;
